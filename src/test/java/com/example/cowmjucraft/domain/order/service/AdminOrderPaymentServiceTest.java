@@ -77,6 +77,26 @@ class AdminOrderPaymentServiceTest {
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
     }
 
+    @Test
+    void confirmPaid_allowsGroupbuyFundedQuantityOverTargetQuantity() {
+        Order order = order();
+        ProjectItem item = groupbuyItem(1L, 100, 98);
+        OrderItem orderItem = new OrderItem(order, item, 3, 10_000, 30_000, "공동구매 상품");
+        OrderBuyer buyer = buyer(order);
+
+        when(orderRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(order));
+        when(orderItemRepository.findAllByOrderIdOrderByProjectItemIdAsc(10L)).thenReturn(List.of(orderItem));
+        when(projectItemRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(item));
+        when(orderBuyerRepository.findById(10L)).thenReturn(Optional.of(buyer));
+        when(orderViewTokenService.rotateToken(any(Order.class), any())).thenReturn("raw-token");
+        when(orderViewTokenService.buildOrderViewUrl("raw-token")).thenReturn("https://example.com/orders/view?token=raw-token");
+
+        adminOrderPaymentService.confirmPaid(10L);
+
+        assertThat(item.getFundedQty()).isEqualTo(101);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+    }
+
     private Order order() {
         Order order = new Order(
                 "ORD-20260505120000-123456",

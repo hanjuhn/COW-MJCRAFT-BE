@@ -247,11 +247,6 @@ public class OrderCreateService {
         }
 
         if (projectItem.getSaleType() == ItemSaleType.GROUPBUY) {
-            Integer targetQty = projectItem.getTargetQty();
-            int fundedQty = projectItem.getFundedQty() == null ? 0 : projectItem.getFundedQty();
-            if (targetQty == null || targetQty - fundedQty < quantity) {
-                throw new OrderException(OrderErrorType.INSUFFICIENT_STOCK, "projectItemId=" + projectItem.getId());
-            }
             return;
         }
 

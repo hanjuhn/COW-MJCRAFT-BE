@@ -12,8 +12,6 @@ import com.example.cowmjucraft.domain.order.dto.request.OrderCreateRequestDto;
 import com.example.cowmjucraft.domain.order.entity.Order;
 import com.example.cowmjucraft.domain.order.entity.OrderBuyerType;
 import com.example.cowmjucraft.domain.order.entity.OrderFulfillmentMethod;
-import com.example.cowmjucraft.domain.order.exception.OrderErrorType;
-import com.example.cowmjucraft.domain.order.exception.OrderException;
 import com.example.cowmjucraft.domain.order.repository.OrderAuthRepository;
 import com.example.cowmjucraft.domain.order.repository.OrderBuyerRepository;
 import com.example.cowmjucraft.domain.order.repository.OrderFulfillmentRepository;
@@ -29,9 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -95,17 +91,23 @@ class OrderCreateServiceTest {
     }
 
     @Test
-    void createOrder_rejectsGroupbuyItemOverRemainingQuantity() {
+    void createOrder_allowsGroupbuyItemOverRemainingQuantity() {
         ProjectItem item = groupbuyItem(1L, 100, 40);
         when(orderAuthRepository.existsByLookupId("guest-mju-001")).thenReturn(false);
         when(projectItemRepository.findById(1L)).thenReturn(Optional.of(item));
+        when(orderRepository.existsByOrderNo(any())).thenReturn(false);
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order order = invocation.getArgument(0);
+            ReflectionTestUtils.setField(order, "id", 10L);
+            return order;
+        });
+        when(passwordEncoder.encode("Pa$$w0rd!")).thenReturn("encoded-password");
+        when(orderViewTokenService.issueNewToken(any(Order.class), any())).thenReturn("raw-token");
+        when(orderViewTokenService.buildOrderViewUrl("raw-token")).thenReturn("https://example.com/orders/view?token=raw-token");
 
-        assertThatThrownBy(() -> orderCreateService.createOrder(request(61)))
-                .isInstanceOf(OrderException.class)
-                .extracting(exception -> ((OrderException) exception).getErrorCode())
-                .isEqualTo(OrderErrorType.INSUFFICIENT_STOCK);
+        orderCreateService.createOrder(request(61));
 
-        verify(orderRepository, never()).save(any());
+        verify(orderItemRepository).saveAll(any());
     }
 
     private ProjectItem groupbuyItem(Long id, int targetQty, int fundedQty) {

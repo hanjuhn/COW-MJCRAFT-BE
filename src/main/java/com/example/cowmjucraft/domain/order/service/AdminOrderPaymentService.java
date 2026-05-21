@@ -89,11 +89,7 @@ public class AdminOrderPaymentService {
         }
 
         if (projectItem.getSaleType() == ItemSaleType.GROUPBUY) {
-            Integer targetQty = projectItem.getTargetQty();
             int fundedQty = projectItem.getFundedQty() == null ? 0 : projectItem.getFundedQty();
-            if (targetQty == null || targetQty - fundedQty < orderQty) {
-                throw new OrderException(OrderErrorType.INSUFFICIENT_STOCK, "projectItemId=" + projectItem.getId());
-            }
             projectItem.updateFundedQty(fundedQty + orderQty);
             return;
         }
