@@ -15,6 +15,9 @@ public interface AnswerRepository extends JpaRepository<Answer, Long> {
     @Query("select a from Answer a join fetch a.formQuestion where a.application = :application")
     List<Answer> findAllByApplicationFetchFormQuestion(@Param("application") Application application);
 
+    @Query("select a from Answer a join fetch a.formQuestion fq join fetch fq.question where a.application in :applications")
+    List<Answer> findAllByApplicationInFetchFormQuestion(@Param("applications") List<Application> applications);
+
     List<Answer> findAllByApplication(Application application);
 
     void deleteAllByApplication(Application application);

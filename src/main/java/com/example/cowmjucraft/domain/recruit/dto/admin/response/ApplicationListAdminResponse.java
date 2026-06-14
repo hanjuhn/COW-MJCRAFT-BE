@@ -13,6 +13,7 @@ public class ApplicationListAdminResponse {
     private Long applicationId;
 
     private String studentId;
+    private String applicantName;
 
     private DepartmentType firstDepartment;
     private DepartmentType secondDepartment;
