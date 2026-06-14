@@ -87,6 +87,7 @@ public class ApplicationAdminService {
                 application.getResultStatus(),
                 application.getCreatedAt(),
                 application.getUpdatedAt(),
+                groups.getBasic(),
                 groups.getCommon(),
                 groups.getFirstDepartment(),
                 groups.getSecondDepartment()

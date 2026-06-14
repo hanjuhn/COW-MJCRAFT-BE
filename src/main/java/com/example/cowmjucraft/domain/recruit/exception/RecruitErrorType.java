@@ -20,7 +20,7 @@ public enum RecruitErrorType implements ErrorCode {
     NOTICE_NOT_IN_THIS_FORM(400, "해당 폼에 속한 공지사항이 아닙니다."),
     SOURCE_FORM_ID_REQUIRED(400, "sourceFormId가 필요합니다."),
     SOURCE_AND_TARGET_CANNOT_BE_SAME(400, "sourceFormId와 targetFormId는 같을 수 없습니다."),
-    COMMON_SECTION_CANNOT_HAVE_DEPARTMENT(400, "공통 섹션에는 부서가 있을 수 없습니다."),
+    COMMON_SECTION_CANNOT_HAVE_DEPARTMENT(400, "기본/공통 섹션에는 부서가 있을 수 없습니다."),
     SELECT_OPTIONS_ONLY_FOR_SELECT(400, "선택형 문항에만 선택 옵션을 설정할 수 있습니다."),
     DEPARTMENT_TYPE_REQUIRED_FOR_DEPARTMENT_SECTION(400, "부서 섹션에는 부서 타입이 필요합니다."),
     APPLICATION_NOT_IN_THIS_FORM(400, "해당 폼에 속한 지원서가 아닙니다."),

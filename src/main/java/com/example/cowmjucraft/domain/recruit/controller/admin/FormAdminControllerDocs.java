@@ -71,7 +71,9 @@ public interface FormAdminControllerDocs {
             summary = "문항 추가",
             description = """
                     Form에 문항(FormQuestion)을 추가합니다.
-                    - sectionType=COMMON이면 departmentType은 null이어야 합니다.
+                    - sectionType은 BASIC, COMMON, DEPARTMENT 중 하나입니다.
+                    - sectionType=BASIC 또는 COMMON이면 departmentType은 null이어야 합니다.
+                    - sectionType=DEPARTMENT이면 departmentType이 필요합니다.
                     - answerType!=SELECT이면 selectOptions는 null이어야 합니다.
                     """
     )
@@ -140,7 +142,7 @@ public interface FormAdminControllerDocs {
 
     // ------------------------------------------------------------
 
-    @Operation(summary = "문항 복사(덮어쓰기)", description = "sourceFormId의 문항을 targetFormId로 복사하며, target의 기존 문항은 전부 삭제 후 복사합니다.")
+    @Operation(summary = "문항 복사(덮어쓰기)", description = "sourceFormId의 문항과 안내문을 targetFormId로 복사하며, target의 기존 문항/안내문은 전부 삭제 후 복사합니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "성공"),
             @ApiResponse(responseCode = "400", description = "요청 규칙 위반(같은 form 복사 등)"),
@@ -159,7 +161,9 @@ public interface FormAdminControllerDocs {
             summary = "안내문 추가",
             description = """
                 Form에 안내문(Notice)을 추가합니다.
-                - sectionType=COMMON이면 departmentType은 null이어야 합니다.
+                - sectionType은 BASIC, COMMON, DEPARTMENT 중 하나입니다.
+                - sectionType=BASIC 또는 COMMON이면 departmentType은 null이어야 합니다.
+                - sectionType=DEPARTMENT이면 departmentType이 필요합니다.
                 """
     )
     @ApiResponses({

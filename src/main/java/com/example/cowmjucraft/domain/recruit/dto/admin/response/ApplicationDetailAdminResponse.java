@@ -24,6 +24,7 @@ public class ApplicationDetailAdminResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    private List<AnswerItem> basicAnswers;
     private List<AnswerItem> commonAnswers;
     private List<AnswerItem> firstDepartmentAnswers;
     private List<AnswerItem> secondDepartmentAnswers;

@@ -56,15 +56,15 @@ public class ApplicationService {
         }
 
         Map<Long, FormQuestion> formQuestionMap = new HashMap<>();
-        Set<Long> requiredCommonIds = new HashSet<>();
+        Set<Long> requiredAlwaysIds = new HashSet<>();
         Set<Long> requiredDeptIds = new HashSet<>();
 
         for (FormQuestion formQuestion : formQuestions) {
             formQuestionMap.put(formQuestion.getId(), formQuestion);
 
             if (formQuestion.isRequired()) {
-                if (formQuestion.getSectionType() == SectionType.COMMON) {
-                    requiredCommonIds.add(formQuestion.getId());
+                if (isAlwaysVisibleSection(formQuestion.getSectionType())) {
+                    requiredAlwaysIds.add(formQuestion.getId());
                 } else if (formQuestion.getSectionType() == SectionType.DEPARTMENT) {
                     if (formQuestion.getDepartmentType() == firstDepartment || formQuestion.getDepartmentType() == secondDepartment) {
                         requiredDeptIds.add(formQuestion.getId());
@@ -99,7 +99,7 @@ public class ApplicationService {
             answerValueMap.put(formQuestionId, value);
         }
 
-        for (Long requiredId : requiredCommonIds) {
+        for (Long requiredId : requiredAlwaysIds) {
             String value = answerValueMap.get(requiredId);
             if (value == null) {
                 throw new RecruitException(RecruitErrorType.REQUIRED_ANSWER_MISSING);
@@ -183,6 +183,7 @@ public class ApplicationService {
 
         Map<String, String> urlMap = fileKeys.isEmpty() ? Map.of() : s3PresignFacade.presignGet(fileKeys);
 
+        List<ApplicationReadResponse.AnswerItem> basic = new ArrayList<>();
         List<ApplicationReadResponse.AnswerItem> common = new ArrayList<>();
         List<ApplicationReadResponse.AnswerItem> firstDepartment = new ArrayList<>();
         List<ApplicationReadResponse.AnswerItem> secondDepartment = new ArrayList<>();
@@ -193,6 +194,11 @@ public class ApplicationService {
 
             if (formQuestion.getAnswerType() == AnswerType.FILE && value != null) {
                 value = urlMap.getOrDefault(value, value);
+            }
+
+            if (formQuestion.getSectionType() == SectionType.BASIC) {
+                basic.add(new ApplicationReadResponse.AnswerItem(formQuestion.getId(), value));
+                continue;
             }
 
             if (formQuestion.getSectionType() == SectionType.COMMON) {
@@ -215,6 +221,7 @@ public class ApplicationService {
 
         List<FormNotice> notices = formNoticeRepository.findAllByForm(form);
 
+        ApplicationReadResponse.NoticeItem basicNotice = null;
         ApplicationReadResponse.NoticeItem commonNotice = null;
         ApplicationReadResponse.NoticeItem firstDepartmentNotice = null;
         ApplicationReadResponse.NoticeItem secondDepartmentNotice = null;
@@ -223,7 +230,9 @@ public class ApplicationService {
             ApplicationReadResponse.NoticeItem item =
                     new ApplicationReadResponse.NoticeItem(notice.getTitle(), notice.getContent());
 
-            if (notice.getSectionType() == SectionType.COMMON) {
+            if (notice.getSectionType() == SectionType.BASIC) {
+                basicNotice = item;
+            } else if (notice.getSectionType() == SectionType.COMMON) {
                 commonNotice = item;
             } else if (notice.getSectionType() == SectionType.DEPARTMENT) {
                 if (notice.getDepartmentType() == application.getFirstDepartment()) {
@@ -242,9 +251,11 @@ public class ApplicationService {
                 application.getSecondDepartment(),
                 application.getCreatedAt(),
                 application.getUpdatedAt(),
+                basicNotice,
                 commonNotice,
                 firstDepartmentNotice,
                 secondDepartmentNotice,
+                basic,
                 common,
                 firstDepartment,
                 secondDepartment
@@ -402,5 +413,9 @@ public class ApplicationService {
 
     public S3PresignFacade.PresignPutBatchResult createAnswerFilePresignPut(List<S3PresignFacade.PresignPutFile> files) {
         return s3PresignFacade.createPresignPutBatch("uploads/recruit/answers", files);
+    }
+
+    private boolean isAlwaysVisibleSection(SectionType sectionType) {
+        return sectionType == SectionType.BASIC || sectionType == SectionType.COMMON;
     }
 }

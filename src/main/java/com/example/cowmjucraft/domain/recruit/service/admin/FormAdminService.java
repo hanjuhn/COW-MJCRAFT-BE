@@ -99,9 +99,7 @@ public class FormAdminService {
             throw new RecruitException(RecruitErrorType.DUPLICATE_QUESTION_ORDER);
         }
 
-        if (request.getSectionType() == SectionType.COMMON && request.getDepartmentType() != null) {
-            throw new RecruitException(RecruitErrorType.COMMON_SECTION_CANNOT_HAVE_DEPARTMENT);
-        }
+        validateSectionDepartment(request.getSectionType(), request.getDepartmentType());
 
         if (request.getAnswerType() != AnswerType.SELECT && request.getSelectOptions() != null) {
             throw new RecruitException(RecruitErrorType.SELECT_OPTIONS_ONLY_FOR_SELECT);
@@ -211,9 +209,7 @@ public class FormAdminService {
             throw new RecruitException(RecruitErrorType.FORM_QUESTION_NOT_IN_THIS_FORM);
         }
 
-        if (request.getSectionType() == SectionType.COMMON && request.getDepartmentType() != null) {
-            throw new RecruitException(RecruitErrorType.COMMON_SECTION_CANNOT_HAVE_DEPARTMENT);
-        }
+        validateSectionDepartment(request.getSectionType(), request.getDepartmentType());
         if (request.getAnswerType() != AnswerType.SELECT && request.getSelectOptions() != null) {
             throw new RecruitException(RecruitErrorType.SELECT_OPTIONS_ONLY_FOR_SELECT);
         }
@@ -249,6 +245,7 @@ public class FormAdminService {
                 .orElseThrow(() -> new RecruitException(RecruitErrorType.SOURCE_FORM_NOT_FOUND));
 
         formQuestionRepository.deleteAllByForm(targetForm);
+        formNoticeRepository.deleteAllByForm(targetForm);
 
         List<FormQuestion> sourceQuestions =
                 formQuestionRepository.findAllByFormOrderByQuestionOrderAsc(sourceForm);
@@ -269,6 +266,19 @@ public class FormAdminService {
             formQuestionRepository.save(newFormQuestion);
 
             copied++;
+        }
+
+        List<FormNotice> sourceNotices = formNoticeRepository.findAllByForm(sourceForm);
+        for (FormNotice notice : sourceNotices) {
+            FormNotice newNotice = FormNotice.builder()
+                    .form(targetForm)
+                    .sectionType(notice.getSectionType())
+                    .departmentType(notice.getDepartmentType())
+                    .title(notice.getTitle())
+                    .content(notice.getContent())
+                    .build();
+
+            formNoticeRepository.save(newNotice);
         }
 
         return new FormCopyAdminResponse(targetFormId, sourceFormId, copied);
@@ -302,12 +312,7 @@ public class FormAdminService {
             throw new RecruitException(RecruitErrorType.NOTICE_NOT_IN_THIS_FORM);
         }
 
-        if (request.getSectionType() == SectionType.DEPARTMENT && request.getDepartmentType() == null) {
-            throw new RecruitException(RecruitErrorType.DEPARTMENT_TYPE_REQUIRED_FOR_DEPARTMENT_SECTION);
-        }
-        if (request.getSectionType() == SectionType.COMMON && request.getDepartmentType() != null) {
-            throw new RecruitException(RecruitErrorType.COMMON_SECTION_CANNOT_HAVE_DEPARTMENT);
-        }
+        validateNoticeRequest(request);
 
         notice.update(
                 request.getSectionType(),
@@ -330,10 +335,17 @@ public class FormAdminService {
     }
 
     private void validateNoticeRequest(FormNoticeRequest request) {
-        if (request.getSectionType() == SectionType.DEPARTMENT && request.getDepartmentType() == null) {
+        validateSectionDepartment(request.getSectionType(), request.getDepartmentType());
+    }
+
+    private void validateSectionDepartment(SectionType sectionType, DepartmentType departmentType) {
+        if (sectionType == null) {
+            throw new RecruitException(RecruitErrorType.INVALID_SECTION_OR_DEPARTMENT_TYPE);
+        }
+        if (sectionType == SectionType.DEPARTMENT && departmentType == null) {
             throw new RecruitException(RecruitErrorType.DEPARTMENT_TYPE_REQUIRED_FOR_DEPARTMENT_SECTION);
         }
-        if (request.getSectionType() == SectionType.COMMON && request.getDepartmentType() != null) {
+        if (sectionType != SectionType.DEPARTMENT && departmentType != null) {
             throw new RecruitException(RecruitErrorType.COMMON_SECTION_CANNOT_HAVE_DEPARTMENT);
         }
     }

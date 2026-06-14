@@ -17,10 +17,12 @@ public record ApplicationReadResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
 
+        NoticeItem basicNotice,
         NoticeItem commonNotice,
         NoticeItem firstDepartmentNotice,
         NoticeItem secondDepartmentNotice,
 
+        List<AnswerItem> basicAnswers,
         List<AnswerItem> commonAnswers,
         List<AnswerItem> firstDepartmentAnswers,
         List<AnswerItem> secondDepartmentAnswers
