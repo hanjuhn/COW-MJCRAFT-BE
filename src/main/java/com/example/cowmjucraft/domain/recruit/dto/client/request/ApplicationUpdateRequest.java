@@ -10,6 +10,7 @@ import java.util.List;
 @NoArgsConstructor
 public class ApplicationUpdateRequest {
 
+    private Long formId;
     private String studentId;
     private String password;
 
