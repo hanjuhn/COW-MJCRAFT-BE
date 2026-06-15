@@ -324,25 +324,20 @@ public class ApplicationService {
                     throw new RecruitException(RecruitErrorType.FORM_QUESTION_NOT_FOUND);
                 }
 
-                if (formQuestion.getSectionType() == SectionType.DEPARTMENT) {
-                    DepartmentType dt = formQuestion.getDepartmentType();
-                    if (dt != currentFirst && dt != currentSecond) {
-                        throw new RecruitException(RecruitErrorType.ANSWER_FOR_UNSELECTED_DEPARTMENT);
-                    }
-                }
-
                 String value = a.getValue();
                 if (value != null && value.isBlank()) {
                     value = null;
                 }
 
                 Answer existing = answerMap.get(formQuestion.getId());
-                if (formQuestion.getAnswerType() == AnswerType.FILE && value != null && isHttpUrl(value) && existing != null) {
-                    value = existing.getValue();
+                boolean selectedDepartmentQuestion = true;
+                if (formQuestion.getSectionType() == SectionType.DEPARTMENT) {
+                    DepartmentType dt = formQuestion.getDepartmentType();
+                    selectedDepartmentQuestion = dt == currentFirst || dt == currentSecond;
                 }
 
                 if (value == null) {
-                    if (formQuestion.isRequired()) {
+                    if (formQuestion.isRequired() && selectedDepartmentQuestion) {
                         throw new RecruitException(RecruitErrorType.REQUIRED_ANSWER_CANNOT_BE_DELETED);
                     }
                     if (existing != null) {
@@ -352,6 +347,14 @@ public class ApplicationService {
                         answerRepository.delete(existing);
                     }
                     continue;
+                }
+
+                if (!selectedDepartmentQuestion) {
+                    throw new RecruitException(RecruitErrorType.ANSWER_FOR_UNSELECTED_DEPARTMENT);
+                }
+
+                if (formQuestion.getAnswerType() == AnswerType.FILE && isHttpUrl(value) && existing != null) {
+                    value = existing.getValue();
                 }
 
                 if (existing != null) {
