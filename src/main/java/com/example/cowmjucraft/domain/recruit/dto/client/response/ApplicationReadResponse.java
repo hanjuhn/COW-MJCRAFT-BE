@@ -25,13 +25,24 @@ public record ApplicationReadResponse(
         List<AnswerItem> basicAnswers,
         List<AnswerItem> commonAnswers,
         List<AnswerItem> firstDepartmentAnswers,
-        List<AnswerItem> secondDepartmentAnswers
+        List<AnswerItem> secondDepartmentAnswers,
+
+        List<ApplicationFormInfoResponse.NoticeDto> notices,
+        List<ApplicationFormInfoResponse.QuestionDto> questions
 
 ) {
     public record AnswerItem(
             Long formQuestionId,
-            String value
-    ) {}
+            String value,
+            String fileKey,
+            String fileUrl,
+            String fileName
+    ) {
+        public AnswerItem(Long formQuestionId, String value) {
+            this(formQuestionId, value, null, null, null);
+        }
+    }
+
     public record NoticeItem(
             String title,
             String content

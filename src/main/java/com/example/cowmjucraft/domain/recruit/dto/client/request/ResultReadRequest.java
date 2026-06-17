@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 public class ResultReadRequest {
+    private Long formId;
     private String studentId;
     private String password;
 }

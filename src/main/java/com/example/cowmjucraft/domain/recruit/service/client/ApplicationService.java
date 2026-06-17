@@ -156,13 +156,7 @@ public class ApplicationService {
     @Transactional(readOnly = true)
     public ApplicationReadResponse read(ApplicationReadRequest request) {
 
-        Form form = formRepository.findFirstByOpenTrue();
-        if (form == null) {
-            form = formRepository.findTopByOrderByIdDesc();
-        }
-        if (form == null) {
-            throw new RecruitException(RecruitErrorType.FORM_NOT_FOUND);
-        }
+        Form form = findReadableForm(request.getFormId());
 
         Application application = applicationRepository.findByFormAndStudentId(form, request.getStudentId())
                 .orElseThrow(() -> new RecruitException(RecruitErrorType.APPLICATION_NOT_FOUND));
@@ -192,17 +186,13 @@ public class ApplicationService {
             FormQuestion formQuestion = answer.getFormQuestion();
             String value = answer.getValue();
 
-            if (formQuestion.getAnswerType() == AnswerType.FILE && value != null) {
-                value = urlMap.getOrDefault(value, value);
-            }
-
             if (formQuestion.getSectionType() == SectionType.BASIC) {
-                basic.add(new ApplicationReadResponse.AnswerItem(formQuestion.getId(), value));
+                basic.add(toAnswerItem(formQuestion, value, urlMap));
                 continue;
             }
 
             if (formQuestion.getSectionType() == SectionType.COMMON) {
-                common.add(new ApplicationReadResponse.AnswerItem(formQuestion.getId(), value));
+                common.add(toAnswerItem(formQuestion, value, urlMap));
                 continue;
             }
 
@@ -210,9 +200,9 @@ public class ApplicationService {
                 DepartmentType departmentType = formQuestion.getDepartmentType();
 
                 if (departmentType == application.getFirstDepartment()) {
-                    firstDepartment.add(new ApplicationReadResponse.AnswerItem(formQuestion.getId(), value));
+                    firstDepartment.add(toAnswerItem(formQuestion, value, urlMap));
                 } else if (departmentType == application.getSecondDepartment()) {
-                    secondDepartment.add(new ApplicationReadResponse.AnswerItem(formQuestion.getId(), value));
+                    secondDepartment.add(toAnswerItem(formQuestion, value, urlMap));
                 } else {
                     throw new RecruitException(RecruitErrorType.INVALID_SECTION_OR_DEPARTMENT_TYPE);
                 }
@@ -220,6 +210,7 @@ public class ApplicationService {
         }
 
         List<FormNotice> notices = formNoticeRepository.findAllByForm(form);
+        List<FormQuestion> formQuestions = formQuestionRepository.findAllByFormOrderByQuestionOrderAsc(form);
 
         ApplicationReadResponse.NoticeItem basicNotice = null;
         ApplicationReadResponse.NoticeItem commonNotice = null;
@@ -258,17 +249,16 @@ public class ApplicationService {
                 basic,
                 common,
                 firstDepartment,
-                secondDepartment
+                secondDepartment,
+                notices.stream().map(ApplicationFormInfoResponse.NoticeDto::from).toList(),
+                formQuestions.stream().map(ApplicationFormInfoResponse.QuestionDto::from).toList()
         );
     }
 
     @Transactional
     public ApplicationUpdateResponse update(ApplicationUpdateRequest request) {
 
-        Form form = formRepository.findFirstByOpenTrue();
-        if (form == null || !form.isOpen()) {
-            throw new RecruitException(RecruitErrorType.RECRUITMENT_CLOSED);
-        }
+        Form form = findWritableForm(request.getFormId());
 
         Application application = applicationRepository.findByFormAndStudentId(form, request.getStudentId())
                 .orElseThrow(() -> new RecruitException(RecruitErrorType.APPLICATION_NOT_FOUND));
@@ -334,22 +324,20 @@ public class ApplicationService {
                     throw new RecruitException(RecruitErrorType.FORM_QUESTION_NOT_FOUND);
                 }
 
-                if (formQuestion.getSectionType() == SectionType.DEPARTMENT) {
-                    DepartmentType dt = formQuestion.getDepartmentType();
-                    if (dt != currentFirst && dt != currentSecond) {
-                        throw new RecruitException(RecruitErrorType.ANSWER_FOR_UNSELECTED_DEPARTMENT);
-                    }
-                }
-
                 String value = a.getValue();
                 if (value != null && value.isBlank()) {
                     value = null;
                 }
 
                 Answer existing = answerMap.get(formQuestion.getId());
+                boolean selectedDepartmentQuestion = true;
+                if (formQuestion.getSectionType() == SectionType.DEPARTMENT) {
+                    DepartmentType dt = formQuestion.getDepartmentType();
+                    selectedDepartmentQuestion = dt == currentFirst || dt == currentSecond;
+                }
 
                 if (value == null) {
-                    if (formQuestion.isRequired()) {
+                    if (formQuestion.isRequired() && selectedDepartmentQuestion) {
                         throw new RecruitException(RecruitErrorType.REQUIRED_ANSWER_CANNOT_BE_DELETED);
                     }
                     if (existing != null) {
@@ -359,6 +347,14 @@ public class ApplicationService {
                         answerRepository.delete(existing);
                     }
                     continue;
+                }
+
+                if (!selectedDepartmentQuestion) {
+                    throw new RecruitException(RecruitErrorType.ANSWER_FOR_UNSELECTED_DEPARTMENT);
+                }
+
+                if (formQuestion.getAnswerType() == AnswerType.FILE && isHttpUrl(value) && existing != null) {
+                    value = existing.getValue();
                 }
 
                 if (existing != null) {
@@ -378,13 +374,7 @@ public class ApplicationService {
     @Transactional(readOnly = true)
     public ResultReadResponse readResult(ResultReadRequest request) {
 
-        Form form = formRepository.findFirstByOpenTrue();
-        if (form == null) {
-            form = formRepository.findTopByOrderByIdDesc();
-        }
-        if (form == null) {
-            throw new RecruitException(RecruitErrorType.FORM_NOT_FOUND);
-        }
+        Form form = findReadableForm(request.getFormId());
 
         Application application = applicationRepository.findByFormAndStudentId(form, request.getStudentId())
                 .orElseThrow(() -> new RecruitException(RecruitErrorType.APPLICATION_NOT_FOUND));
@@ -417,5 +407,63 @@ public class ApplicationService {
 
     private boolean isAlwaysVisibleSection(SectionType sectionType) {
         return sectionType == SectionType.BASIC || sectionType == SectionType.COMMON;
+    }
+
+    private Form findReadableForm(Long formId) {
+        if (formId != null) {
+            return formRepository.findById(formId)
+                    .orElseThrow(() -> new RecruitException(RecruitErrorType.FORM_NOT_FOUND));
+        }
+
+        Form form = formRepository.findFirstByOpenTrue();
+        if (form == null) {
+            form = formRepository.findTopByOrderByIdDesc();
+        }
+        if (form == null) {
+            throw new RecruitException(RecruitErrorType.FORM_NOT_FOUND);
+        }
+        return form;
+    }
+
+    private Form findWritableForm(Long formId) {
+        Form form = formId != null
+                ? formRepository.findById(formId)
+                .orElseThrow(() -> new RecruitException(RecruitErrorType.FORM_NOT_FOUND))
+                : formRepository.findFirstByOpenTrue();
+
+        if (form == null || !form.isOpen()) {
+            throw new RecruitException(RecruitErrorType.RECRUITMENT_CLOSED);
+        }
+        return form;
+    }
+
+    private ApplicationReadResponse.AnswerItem toAnswerItem(
+            FormQuestion formQuestion,
+            String value,
+            Map<String, String> fileUrlMap
+    ) {
+        if (formQuestion.getAnswerType() != AnswerType.FILE || value == null) {
+            return new ApplicationReadResponse.AnswerItem(formQuestion.getId(), value);
+        }
+
+        return new ApplicationReadResponse.AnswerItem(
+                formQuestion.getId(),
+                value,
+                value,
+                fileUrlMap.getOrDefault(value, value),
+                extractOriginalFileName(value)
+        );
+    }
+
+    private String extractOriginalFileName(String key) {
+        String trimmed = key == null ? "" : key.trim();
+        int lastSlash = trimmed.lastIndexOf('/');
+        String fileName = lastSlash >= 0 ? trimmed.substring(lastSlash + 1) : trimmed;
+        return fileName.replaceFirst("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}-", "");
+    }
+
+    private boolean isHttpUrl(String value) {
+        String trimmed = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        return trimmed.startsWith("http://") || trimmed.startsWith("https://");
     }
 }
