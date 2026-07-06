@@ -15,6 +15,7 @@ server:
 aws:
   region: ${AWS_REGION:ap-northeast-2}
   s3:
+    endpoint: ${AWS_S3_ENDPOINT}
     bucket: ${AWS_S3_BUCKET}
 
 oauth:

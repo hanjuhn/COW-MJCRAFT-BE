@@ -26,6 +26,10 @@ spring:
           starttls:
             enable: true
 
+aws:
+  s3:
+    endpoint: ${AWS_S3_ENDPOINT:http://localhost:9000}
+
 app:
   public-base-url: ${APP_PUBLIC_BASE_URL}
   order-view-path: ${APP_ORDER_VIEW_PATH}
